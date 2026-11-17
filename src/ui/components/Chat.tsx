@@ -21,7 +21,7 @@ import {
 	useCallback,
 	useMemo,
 } from "react";
-import { TFile, Notice, Platform } from "obsidian";
+import { TFile, Notice, Platform, getLanguage } from "obsidian";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import History from "lucide-react/dist/esm/icons/history";
 
@@ -74,7 +74,7 @@ import { CodexVaultMcpBridge } from "src/core/codexVaultMcpBridge";
 import { localLlmChatStream } from "src/core/localLlmProvider";
 import { openaiChatWithToolsStream, openaiGenerateImageStream, isOpenAiImageModel } from "src/core/openaiProvider";
 import { anthropicChatWithToolsStream } from "src/core/anthropicProvider";
-import { formatWebSearchCitations, getSearchSelectionForModel, localLlmSupportsWebSearch, providerSupportsWebSearch } from "src/core/webSearch";
+import { formatWebSearchCitations, getSearchSelectionForModel, deduplicateWebSearchSources, localLlmSupportsWebSearch, localLlmWebSearchSettings, providerSupportsWebSearch } from "src/core/webSearch";
 import { searchLocalRag, searchLocalRagResults, loadRagMediaAttachments, buildRagPdfTextContext } from "src/core/localRagStore";
 import { resolveApiProviderPdfInputMode, resolveLocalLlmPdfInputMode } from "src/core/pdfInputMode";
 import { getJevRagMode } from "src/core/jevRagFilter";
@@ -118,7 +118,8 @@ import { DEFAULT_BUILTIN_SKILL_IDS, builtinFolderPath, restoredSkillPaths, prune
 import { buildBuiltinOkfSystemPrompt, buildOkfSystemPrompt, discoverOkfBundles, getBuiltinOkfBundle, isBuiltinOkfBundleId, type OkfBundle } from "src/core/okfLoader";
 import { executeReadOkfDocumentTool, READ_OKF_DOCUMENT_TOOL, READ_OKF_DOCUMENT_TOOL_NAME } from "src/core/okfDocumentTool";
 import { promptForValue } from "./workflow/ValuePromptModal";
-import { t } from "src/i18n";
+import { getLocale, isTraditionalChineseLocale, t } from "src/i18n";
+import { createLocalWebTools } from "src/core/localWebTools";
 import { getLiveProviders } from "src/core/live/live-session";
 import LiveConversation from "./LiveConversation";
 import { LiveChatHistory } from "./liveChatHistory";
@@ -489,10 +490,10 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 
 	// Gemini requires external search; other API providers may use native search.
 	const activeSearchProvider = getActiveApiProvider();
-	// Tools-capable local LLMs can use the configured external search provider.
+	// Tools-capable local LLMs always get the keyless web tools (Wikipedia + read page);
+	// a configured Tavily / Brave key adds general web search on top.
 	const localLlmCanWebSearch = isLocalLlmToolsCapable
-		&& currentLocalLlmConfig?.framework !== "opencode"
-		&& localLlmSupportsWebSearch(plugin.settings.webSearch);
+		&& currentLocalLlmConfig?.framework !== "opencode";
 	const allowWebSearch = localLlmCanWebSearch || (!isCliMode && !!activeSearchProvider
 		&& providerSupportsWebSearch(activeSearchProvider, getApiProviderModelName(currentModel) || "", plugin.settings.webSearch));
 	// Server RAG needs API mode; local RAG works everywhere
@@ -1862,9 +1863,8 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 				// "none" honors the user's per-chat opt-out.
 				const hasSelectedSkillOrOkf = effectiveSkillPaths.length > 0 || activeOkfBundleIds.length > 0;
 				// Web search runs as a tool, so it needs the tools flow even with Vault tools off.
-				const localWebSearch = webSearchEnabled
-					&& llmConfig.framework !== "opencode"
-					&& localLlmSupportsWebSearch(plugin.settings.webSearch);
+				const localWebSearch = webSearchEnabled && llmConfig.framework !== "opencode";
+				const localExternalSearch = localWebSearch && localLlmSupportsWebSearch(plugin.settings.webSearch);
 				const wantsTools = (vaultToolMode !== "none" || hasSelectedSkillOrOkf || localWebSearch)
 					&& isLocalLlmToolsEnabled(llmConfig, llmConfig.model);
 				const allMessages = messagesForModel(limitConversationHistory([...messages, userMessage], maxPreviousMessages));
@@ -2131,9 +2131,20 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 					// Kept out of `systemPrompt` itself: a tools rejection falls through to
 					// the marker flow below, which has no tool to offer.
 					if (ragSearchRunner) toolsBundle.push(RAG_SEARCH_TOOL);
-					const toolsSystemPrompt = ragSearchRunner ? systemPrompt + ragSearchRunner.systemPrompt : systemPrompt;
+					// Keyless web tools: Wikipedia search and reading a page.
+					const localWebTools = localWebSearch
+						? createLocalWebTools({
+							defaultWikipediaLang: getLocale(),
+							zhVariant: isTraditionalChineseLocale(getLanguage()) ? "zh-tw" : undefined,
+							maxCalls: settings.maxFunctionCalls,
+						})
+						: null;
+					if (localWebTools) toolsBundle.push(...localWebTools.tools);
+					const toolsSystemPrompt = (ragSearchRunner ? systemPrompt + ragSearchRunner.systemPrompt : systemPrompt)
+						+ (localWebTools?.systemPrompt ?? "");
 
 					const baseExecuteToolCall = async (name: string, args: Record<string, unknown>) => {
+						if (localWebTools?.handles(name)) return await localWebTools.execute(name, args);
 						if (name === RAG_SEARCH_TOOL_NAME && ragSearchRunner) return await ragSearchRunner.run(args);
 						if (name === READ_SKILL_TOOL_NAME) return await executeReadSkillTool(plugin.app, llmLoadedSkills, args.skillName as string);
 						if (name.startsWith("mcp_") && mcpToolExecutor) {
@@ -2185,10 +2196,10 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 							toolsSystemPrompt, executeToolCall, abortController.signal,
 							false, // local LLMs: don't request reasoning_effort
 							undefined, undefined, // proxy already handled by createNodeFetch
-							localWebSearch, undefined, // external web search only; no reasoning effort
+							localExternalSearch, undefined, // Tavily / Brave web_search when a key is set; no reasoning effort
 							true, // recover tool calls a small local model writes as text
-							localWebSearch
-								? { settings: plugin.settings.webSearch, maxCalls: plugin.settings.maxFunctionCalls }
+							localExternalSearch
+								? { settings: localLlmWebSearchSettings(plugin.settings.webSearch), maxCalls: plugin.settings.maxFunctionCalls }
 								: undefined,
 						)) {
 							if (abortController.signal.aborted) { toolsFlowAborted = true; break; }
@@ -2278,8 +2289,11 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 							...pendingStatusFields({ edits: processedEdits, deletes: processedDeletes, renames: processedRenames }),
 							ragUsed: localRagSources.length > 0,
 							ragSources: localRagSources.length > 0 ? localRagSources : undefined,
-							webSearchUsed: stream.webSearchUsed || undefined,
-							webSearchSources: stream.webSearchSources.length > 0 ? stream.webSearchSources : undefined,
+							webSearchUsed: stream.webSearchUsed || localWebTools?.used || undefined,
+							webSearchSources: (() => {
+								const sources = deduplicateWebSearchSources([...stream.webSearchSources, ...(localWebTools?.sources ?? [])]);
+								return sources.length > 0 ? sources : undefined;
+							})(),
 						};
 						return {
 							message: assistantMessage,

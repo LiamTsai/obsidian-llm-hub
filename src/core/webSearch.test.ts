@@ -7,6 +7,7 @@ import {
   formatWebSearchCitations,
   getSearchSelectionForModel,
   localLlmSupportsWebSearch,
+  localLlmWebSearchSettings,
   modelSupportsWebSearch,
   providerSupportsWebSearch,
 } from "./webSearch";
@@ -168,14 +169,21 @@ describe("search mode selection", () => {
 describe("localLlmSupportsWebSearch", () => {
   const empty = { provider: "none" as const, tavilyApiKey: "", braveApiKey: "" };
 
-  it("allows a configured external provider", () => {
+  it("allows a configured external provider in either mode", () => {
     expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily", tavilyApiKey: "key" })).toBe(true);
+    expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily", tavilyApiKey: "key", mode: "native" })).toBe(true);
+    expect(localLlmSupportsWebSearch({ ...empty, provider: "brave", braveApiKey: "key", mode: "native" })).toBe(true);
   });
 
-  it("rejects native mode, missing keys, and missing settings", () => {
-    expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily", tavilyApiKey: "key", mode: "native" })).toBe(false);
+  it("rejects a missing key or provider", () => {
     expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily" })).toBe(false);
     expect(localLlmSupportsWebSearch(empty)).toBe(false);
     expect(localLlmSupportsWebSearch(undefined)).toBe(false);
+  });
+
+  it("forces external mode for local requests", () => {
+    const search = { ...empty, provider: "tavily" as const, tavilyApiKey: "key", mode: "native" as const };
+    expect(resolveWebSearchMode(localLlmWebSearchSettings(search))).toBe("external");
+    expect(search.mode).toBe("native");
   });
 });

@@ -12,8 +12,13 @@
 > 與原版的差異 / Changes from upstream:
 > - **修訂繁體中文介面**：新增完整的台灣繁體中文翻譯（約 1,700 條，含共用元件字串）。Obsidian 語言設為繁體中文時自動套用；原版會把 `zh-TW` 顯示成簡體，且有部分字串未翻譯。
 >   *Revised Traditional Chinese (Taiwan) UI: a complete zh-TW catalogue, applied automatically when Obsidian runs in Traditional Chinese.*
-> - **本地 LLM 可上網搜尋**：LM Studio / vLLM / AnythingLLM（以及透過 `/v1` 端點、框架選 LM Studio 的 Ollama）可使用外部搜尋（Tavily / Brave），回覆會附上來源。
->   *Local LLMs on an OpenAI-compatible framework can use web search through the configured external provider (Tavily / Brave), with sources attached.*
+> - **本地 LLM 可上網**：LM Studio / vLLM / AnythingLLM（以及透過 `/v1` 端點、框架選 LM Studio 的 Ollama）打開「網路搜尋」後可使用：
+>   - `wikipedia_search`：查詢 Wikipedia（免金鑰；繁體介面時以台灣正體顯示）
+>   - `read_web_page`：讀取任意公開網頁的正文（免金鑰；會擋下 localhost 與區網位址）
+>   - `web_search`：全網搜尋，需在設定中填入 Tavily 或 Brave 金鑰（不論搜尋模式設為內建或外部）
+>
+>   回覆會附上讀取過的來源連結。
+>   *Local LLMs on an OpenAI-compatible framework get keyless `wikipedia_search` and `read_web_page` tools, plus `web_search` when a Tavily / Brave key is set. Sources are attached to replies.*
 >
 > 原作者的其餘功能與說明維持不變，見下文。 / Everything else is unchanged from upstream; see below.
 
