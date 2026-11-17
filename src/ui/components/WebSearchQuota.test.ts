@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeBraveUsage, summarizeTavilyUsage } from "./WebSearchQuota";
+import { shouldRefreshTavily, summarizeBraveUsage, summarizeTavilyUsage } from "./WebSearchQuota";
 
 describe("summarizeTavilyUsage", () => {
   it("uses the tighter of plan and key limits", () => {
@@ -31,5 +31,17 @@ describe("summarizeBraveUsage", () => {
 
   it("returns null without a usable window", () => {
     expect(summarizeBraveUsage({ fetchedAt: 0, windows: [{ limit: 1, remaining: 1, windowSeconds: 1 }] })).toBeNull();
+  });
+});
+
+describe("shouldRefreshTavily", () => {
+  it("always re-checks after a reply, even right after the last check", () => {
+    expect(shouldRefreshTavily(true, 10_000, 15_000)).toBe(true);
+  });
+
+  it("throttles other re-checks to every 30 seconds", () => {
+    expect(shouldRefreshTavily(false, 10_000, 15_000)).toBe(false);
+    expect(shouldRefreshTavily(false, 10_000, 40_000)).toBe(true);
+    expect(shouldRefreshTavily(false, 0, 1_000_000)).toBe(true);
   });
 });

@@ -10,8 +10,18 @@ import {
 import type { WebSearchSettings } from "src/core/webSearchMode";
 import { getLocale, t } from "src/i18n";
 
-/** Re-check Tavily at most this often while the chat is idle. */
+/** Outside of replies (opening a chat, switching models), re-check Tavily at most this often. */
 const TAVILY_REFRESH_MS = 30_000;
+/** Wait briefly after a reply so Tavily has counted its searches. */
+const REPLY_SETTLE_MS = 2_000;
+
+/**
+ * Always re-check after a reply finishes (it may have searched); otherwise only
+ * when the last check is older than TAVILY_REFRESH_MS. Checking usage is free.
+ */
+export function shouldRefreshTavily(replyFinished: boolean, lastCheckedAt: number, now: number): boolean {
+  return replyFinished || now - lastCheckedAt >= TAVILY_REFRESH_MS;
+}
 
 export interface QuotaSummary {
   /** Remaining searches, or null when the plan is unlimited. */
@@ -69,20 +79,27 @@ export function WebSearchQuota({ settings, isLoading }: WebSearchQuotaProps) {
   const provider = settings.provider === "tavily" || settings.provider === "brave" ? settings.provider : null;
   const apiKey = (provider === "tavily" ? settings.tavilyApiKey : provider === "brave" ? settings.braveApiKey : "").trim();
 
+  const wasLoading = useRef(isLoading);
+
   useEffect(() => subscribeWebSearchUsage(rerender), []);
 
   // Tavily has a free usage endpoint (no credits spent). Brave reports quota in the
   // headers of real searches, which the shared search code records automatically.
   useEffect(() => {
+    const replyFinished = wasLoading.current && !isLoading;
+    wasLoading.current = isLoading;
     if (provider !== "tavily" || !apiKey || isLoading) return;
     const cached = getTavilyUsage(apiKey);
-    if (cached && Date.now() - Math.max(cached.fetchedAt, lastFetch.current) < TAVILY_REFRESH_MS) return;
-    lastFetch.current = Date.now();
+    const lastCheckedAt = Math.max(cached?.fetchedAt ?? 0, lastFetch.current);
+    if (!shouldRefreshTavily(replyFinished, lastCheckedAt, Date.now())) return;
     let cancelled = false;
-    fetchTavilyUsage(apiKey)
-      .then(() => { if (!cancelled) setError(null); })
-      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
-    return () => { cancelled = true; };
+    const timer = window.setTimeout(() => {
+      lastFetch.current = Date.now();
+      fetchTavilyUsage(apiKey)
+        .then(() => { if (!cancelled) setError(null); })
+        .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    }, replyFinished ? REPLY_SETTLE_MS : 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [provider, apiKey, isLoading]);
 
   if (!provider || !apiKey) return null;
