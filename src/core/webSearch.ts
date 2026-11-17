@@ -80,6 +80,14 @@ export function providerSupportsWebSearch(provider: ApiProviderConfig, modelName
   return isOfficialAnthropicProvider(provider);
 }
 
+/**
+ * Local LLMs have no native search, so they can only use a configured external
+ * provider (Tavily / Brave) through the OpenAI-compatible tools flow.
+ */
+export function localLlmSupportsWebSearch(search?: WebSearchSettings): boolean {
+  return !!search && resolveWebSearchMode(search) === "external" && isWebSearchConfigured(search);
+}
+
 export function modelSupportsWebSearch(
   model: ModelType,
   providers: ApiProviderConfig[],

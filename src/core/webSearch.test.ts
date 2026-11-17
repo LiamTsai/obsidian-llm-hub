@@ -6,6 +6,7 @@ import {
   deduplicateWebSearchSources,
   formatWebSearchCitations,
   getSearchSelectionForModel,
+  localLlmSupportsWebSearch,
   modelSupportsWebSearch,
   providerSupportsWebSearch,
 } from "./webSearch";
@@ -161,5 +162,20 @@ describe("search mode selection", () => {
     expect(providerSupportsWebSearch(provider({ baseUrl: "https://gateway.test" }), "gpt-5.4", search)).toBe(false);
     expect(providerSupportsWebSearch(provider({ baseUrl: "https://gateway.test" }), "gpt-5.4", { ...search, mode: "external" })).toBe(true);
     expect(providerSupportsWebSearch(provider({}), "gpt-5.4", { ...empty, mode: "external" })).toBe(false);
+  });
+});
+
+describe("localLlmSupportsWebSearch", () => {
+  const empty = { provider: "none" as const, tavilyApiKey: "", braveApiKey: "" };
+
+  it("allows a configured external provider", () => {
+    expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily", tavilyApiKey: "key" })).toBe(true);
+  });
+
+  it("rejects native mode, missing keys, and missing settings", () => {
+    expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily", tavilyApiKey: "key", mode: "native" })).toBe(false);
+    expect(localLlmSupportsWebSearch({ ...empty, provider: "tavily" })).toBe(false);
+    expect(localLlmSupportsWebSearch(empty)).toBe(false);
+    expect(localLlmSupportsWebSearch(undefined)).toBe(false);
   });
 });

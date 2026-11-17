@@ -74,7 +74,7 @@ import { CodexVaultMcpBridge } from "src/core/codexVaultMcpBridge";
 import { localLlmChatStream } from "src/core/localLlmProvider";
 import { openaiChatWithToolsStream, openaiGenerateImageStream, isOpenAiImageModel } from "src/core/openaiProvider";
 import { anthropicChatWithToolsStream } from "src/core/anthropicProvider";
-import { formatWebSearchCitations, getSearchSelectionForModel, providerSupportsWebSearch } from "src/core/webSearch";
+import { formatWebSearchCitations, getSearchSelectionForModel, localLlmSupportsWebSearch, providerSupportsWebSearch } from "src/core/webSearch";
 import { searchLocalRag, searchLocalRagResults, loadRagMediaAttachments, buildRagPdfTextContext } from "src/core/localRagStore";
 import { resolveApiProviderPdfInputMode, resolveLocalLlmPdfInputMode } from "src/core/pdfInputMode";
 import { getJevRagMode } from "src/core/jevRagFilter";
@@ -489,8 +489,12 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 
 	// Gemini requires external search; other API providers may use native search.
 	const activeSearchProvider = getActiveApiProvider();
-	const allowWebSearch = !isCliMode && !!activeSearchProvider
-		&& providerSupportsWebSearch(activeSearchProvider, getApiProviderModelName(currentModel) || "", plugin.settings.webSearch);
+	// Tools-capable local LLMs can use the configured external search provider.
+	const localLlmCanWebSearch = isLocalLlmToolsCapable
+		&& currentLocalLlmConfig?.framework !== "opencode"
+		&& localLlmSupportsWebSearch(plugin.settings.webSearch);
+	const allowWebSearch = localLlmCanWebSearch || (!isCliMode && !!activeSearchProvider
+		&& providerSupportsWebSearch(activeSearchProvider, getApiProviderModelName(currentModel) || "", plugin.settings.webSearch));
 	// Server RAG needs API mode; local RAG works everywhere
 	const allowRag = ragEnabledState;
 	const resolvedApiModelName = getApiProviderModelName(currentModel) || "";
@@ -1857,7 +1861,11 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 				// rejected tools (tracked in toolsUnsupportedModels). Vault tool mode
 				// "none" honors the user's per-chat opt-out.
 				const hasSelectedSkillOrOkf = effectiveSkillPaths.length > 0 || activeOkfBundleIds.length > 0;
-				const wantsTools = (vaultToolMode !== "none" || hasSelectedSkillOrOkf)
+				// Web search runs as a tool, so it needs the tools flow even with Vault tools off.
+				const localWebSearch = webSearchEnabled
+					&& llmConfig.framework !== "opencode"
+					&& localLlmSupportsWebSearch(plugin.settings.webSearch);
+				const wantsTools = (vaultToolMode !== "none" || hasSelectedSkillOrOkf || localWebSearch)
 					&& isLocalLlmToolsEnabled(llmConfig, llmConfig.model);
 				const allMessages = messagesForModel(limitConversationHistory([...messages, userMessage], maxPreviousMessages));
 
@@ -2177,8 +2185,11 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 							toolsSystemPrompt, executeToolCall, abortController.signal,
 							false, // local LLMs: don't request reasoning_effort
 							undefined, undefined, // proxy already handled by createNodeFetch
-							undefined, undefined, // no native web search, no reasoning effort
+							localWebSearch, undefined, // external web search only; no reasoning effort
 							true, // recover tool calls a small local model writes as text
+							localWebSearch
+								? { settings: plugin.settings.webSearch, maxCalls: plugin.settings.maxFunctionCalls }
+								: undefined,
 						)) {
 							if (abortController.signal.aborted) { toolsFlowAborted = true; break; }
 							// An "error" chunk throws out of here into the catch below,
@@ -2267,6 +2278,8 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 							...pendingStatusFields({ edits: processedEdits, deletes: processedDeletes, renames: processedRenames }),
 							ragUsed: localRagSources.length > 0,
 							ragSources: localRagSources.length > 0 ? localRagSources : undefined,
+							webSearchUsed: stream.webSearchUsed || undefined,
+							webSearchSources: stream.webSearchSources.length > 0 ? stream.webSearchSources : undefined,
 						};
 						return {
 							message: assistantMessage,

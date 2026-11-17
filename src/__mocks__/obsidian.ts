@@ -13,6 +13,9 @@ export class TFolder {
 export function normalizePath(path: string): string {
   return path.split("/").filter(Boolean).join("/");
 }
+export function getLanguage(): string {
+  return "en";
+}
 export function requestUrl(_options: unknown): Promise<unknown> {
   throw new Error("requestUrl is not available in tests");
 }
