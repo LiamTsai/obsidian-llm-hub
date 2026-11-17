@@ -1,11 +1,10 @@
 {
-	"id": "llm-hub",
-	"name": "LLM Hub",
+	"id": "llm-hub-tw",
+	"name": "LLM Hub TW",
 	"minAppVersion": "1.13.0",
-	"description": "AI assistant with chat, workflow automation, and semantic search (RAG). Supports Gemini, OpenAI, Anthropic, OpenRouter, Grok, local LLMs, and CLI backends.",
-	"author": "takeshy",
-	"authorUrl": "https://github.com/takeshy",
-	"fundingUrl": "https://buymeacoffee.com/takeshy",
+	"description": "Fork of LLM Hub with a revised Traditional Chinese UI and web search for local LLMs. AI assistant with chat, workflow automation, and semantic search (RAG).",
+	"author": "LiamTsai (fork of takeshy/obsidian-llm-hub)",
+	"authorUrl": "https://github.com/LiamTsai",
 	"isDesktopOnly": true,
-	"version": "0.39.1"
+	"version": "1.0.0"
 }

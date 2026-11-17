@@ -6,6 +6,9 @@
 > **這是 [takeshy/obsidian-llm-hub](https://github.com/takeshy/obsidian-llm-hub) 的修改版（fork），由 [@LiamTsai](https://github.com/LiamTsai) 維護。**
 > This is a fork of [takeshy/obsidian-llm-hub](https://github.com/takeshy/obsidian-llm-hub), maintained by [@LiamTsai](https://github.com/LiamTsai).
 >
+> 本 fork 使用獨立的插件 id `llm-hub-tw`（名稱「LLM Hub TW」）與獨立版本號（從 1.0.0 起算），不會被原版更新覆蓋。請勿與原版 LLM Hub 同時啟用。
+> This fork uses its own plugin id `llm-hub-tw` ("LLM Hub TW") and its own version numbers (starting at 1.0.0). Do not enable it together with the original LLM Hub.
+>
 > 與原版的差異 / Changes from upstream:
 > - **修訂繁體中文介面**：新增完整的台灣繁體中文翻譯（約 1,700 條，含共用元件字串）。Obsidian 語言設為繁體中文時自動套用；原版會把 `zh-TW` 顯示成簡體，且有部分字串未翻譯。
 >   *Revised Traditional Chinese (Taiwan) UI: a complete zh-TW catalogue, applied automatically when Obsidian runs in Traditional Chinese.*
