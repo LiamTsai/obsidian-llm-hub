@@ -2,6 +2,18 @@
 
 [![DeepWiki](https://img.shields.io/badge/DeepWiki-takeshy%2Fobsidian--llm--hub-blue.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTQgMTloMTZhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJINWEyIDIgMCAwIDAtMiAydjEyYTIgMiAwIDAgMSAyLTJ6Ii8+PHBhdGggZD0iTTkgMTV2LTQiLz48cGF0aCBkPSJNMTIgMTV2LTIiLz48cGF0aCBkPSJNMTUgMTV2LTQiLz48L3N2Zz4=)](https://deepwiki.com/takeshy/obsidian-llm-hub)
 
+> [!NOTE]
+> **這是 [takeshy/obsidian-llm-hub](https://github.com/takeshy/obsidian-llm-hub) 的修改版（fork），由 [@LiamTsai](https://github.com/LiamTsai) 維護。**
+> This is a fork of [takeshy/obsidian-llm-hub](https://github.com/takeshy/obsidian-llm-hub), maintained by [@LiamTsai](https://github.com/LiamTsai).
+>
+> 與原版的差異 / Changes from upstream:
+> - **修訂繁體中文介面**：新增完整的台灣繁體中文翻譯（約 1,700 條，含共用元件字串）。Obsidian 語言設為繁體中文時自動套用；原版會把 `zh-TW` 顯示成簡體，且有部分字串未翻譯。
+>   *Revised Traditional Chinese (Taiwan) UI: a complete zh-TW catalogue, applied automatically when Obsidian runs in Traditional Chinese.*
+> - **本地 LLM 可上網搜尋**：LM Studio / vLLM / AnythingLLM（以及透過 `/v1` 端點、框架選 LM Studio 的 Ollama）可使用外部搜尋（Tavily / Brave），回覆會附上來源。
+>   *Local LLMs on an OpenAI-compatible framework can use web search through the configured external provider (Tavily / Brave), with sources attached.*
+>
+> 原作者的其餘功能與說明維持不變，見下文。 / Everything else is unchanged from upstream; see below.
+
 **Free and open-source** AI assistant for Obsidian with **Chat**, **Workflow Automation**, and **Semantic Search (RAG)**. Supports multiple LLM providers — use whichever AI fits your needs.
 
 > **Use any LLM provider:** [Gemini](https://ai.google.dev), [OpenAI](https://platform.openai.com), [Anthropic](https://console.anthropic.com), [OpenRouter](https://openrouter.ai), [Grok](https://console.x.ai), [OpenCode Zen / Go](https://opencode.ai), local LLMs ([Ollama](https://ollama.com), [LM Studio](https://lmstudio.ai), [vLLM](https://docs.vllm.ai), [OpenCode](https://opencode.ai)), or CLI tools ([Antigravity CLI](https://antigravity.google), [Claude Code](https://github.com/anthropics/claude-code), [Codex CLI](https://github.com/openai/codex)).
