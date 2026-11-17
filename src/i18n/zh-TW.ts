@@ -1672,4 +1672,5 @@ export const zhTW: Record<string, string> = {
   "chat.dashboardCreateNamePrompt": "儀表板名稱",
   "okf.builtinHelpDescription": "LLM Hub 內建功能參考",
   "input.webSearchQuota": "剩 {{remaining}} 次",
+  "input.webSearchQuotaEstimated": "Tavily 的統計尚未更新，這裡已先扣除剛完成的搜尋。",
 };

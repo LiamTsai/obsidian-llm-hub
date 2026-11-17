@@ -511,4 +511,5 @@ export const ja: Record<string, string> = {
   // RAG source modal
 
   "input.webSearchQuota": "残り {{remaining}} 回",
+  "input.webSearchQuotaEstimated": "Tavily の集計はまだ更新されていません。直近の検索分はここで差し引いています。",
 };

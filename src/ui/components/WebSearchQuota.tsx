@@ -8,6 +8,7 @@ import {
   type TavilyUsage,
 } from "obsidian-llm-hub-common/core";
 import type { WebSearchSettings } from "src/core/webSearchMode";
+import { displayedTavilyRemaining, subscribeSearchQuota, tavilyRemaining } from "src/core/searchQuotaTracker";
 import { getLocale, t } from "src/i18n";
 
 /** Outside of replies (opening a chat, switching models), re-check Tavily at most this often. */
@@ -35,8 +36,7 @@ const asOf = (fetchedAt: number) => t("settings.webSearch.usage.asOf", { date: n
 
 export function summarizeTavilyUsage(usage: TavilyUsage): QuotaSummary {
   // A basic search costs one credit; the per-key limit applies when it is tighter than the plan.
-  const candidates = [usage.plan, usage.key].filter((a): a is NonNullable<typeof a> => !!a && a.remaining !== null);
-  const remaining = candidates.length > 0 ? Math.min(...candidates.map(a => a.remaining as number)) : null;
+  const remaining = tavilyRemaining(usage);
   const parts = [`Tavily ${t("settings.webSearch.usage.plan")}: ${usage.plan.remaining === null
     ? t("settings.webSearch.usage.unlimited")
     : t("settings.webSearch.usage.credits", { remaining: formatNumber(usage.plan.remaining), limit: formatNumber(usage.plan.limit ?? 0) })}`];
@@ -82,6 +82,7 @@ export function WebSearchQuota({ settings, isLoading }: WebSearchQuotaProps) {
   const wasLoading = useRef(isLoading);
 
   useEffect(() => subscribeWebSearchUsage(rerender), []);
+  useEffect(() => subscribeSearchQuota(rerender), []);
 
   // Tavily has a free usage endpoint (no credits spent). Brave reports quota in the
   // headers of real searches, which the shared search code records automatically.
@@ -106,7 +107,14 @@ export function WebSearchQuota({ settings, isLoading }: WebSearchQuotaProps) {
 
   const tavily = provider === "tavily" ? getTavilyUsage(apiKey) : undefined;
   const brave = provider === "brave" ? getBraveUsage(apiKey) : undefined;
-  const summary = tavily ? summarizeTavilyUsage(tavily) : brave ? summarizeBraveUsage(brave) : null;
+  let summary = tavily ? summarizeTavilyUsage(tavily) : brave ? summarizeBraveUsage(brave) : null;
+  if (tavily && summary) {
+    // Tavily's own count can lag; show the local estimate until it catches up.
+    const shown = displayedTavilyRemaining(apiKey, summary.remaining);
+    if (shown !== summary.remaining) {
+      summary = { remaining: shown, detail: `${summary.detail}\n${t("input.webSearchQuotaEstimated")}` };
+    }
+  }
 
   let label: string;
   let title: string;
