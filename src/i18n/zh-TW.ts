@@ -1671,4 +1671,5 @@ export const zhTW: Record<string, string> = {
   "search.helpPdfChunkPages": "PDF 區塊頁數 — 為 PDF 建立索引時，合併成單一區塊的頁數。",
   "chat.dashboardCreateNamePrompt": "儀表板名稱",
   "okf.builtinHelpDescription": "LLM Hub 內建功能參考",
+  "input.webSearchQuota": "剩 {{remaining}} 次",
 };

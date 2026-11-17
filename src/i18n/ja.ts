@@ -510,4 +510,5 @@ export const ja: Record<string, string> = {
 
   // RAG source modal
 
+  "input.webSearchQuota": "残り {{remaining}} 回",
 };

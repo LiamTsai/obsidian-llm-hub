@@ -518,6 +518,7 @@ export const en = {
 
   "okf.builtinHelpDescription": "Built-in LLM Hub feature reference",
 
+  "input.webSearchQuota": "{{remaining}} left",
 };
 
 /** This plugin's own keys, plus everything the shared package defines. */

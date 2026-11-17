@@ -120,6 +120,7 @@ import { executeReadOkfDocumentTool, READ_OKF_DOCUMENT_TOOL, READ_OKF_DOCUMENT_T
 import { promptForValue } from "./workflow/ValuePromptModal";
 import { getLocale, isTraditionalChineseLocale, t } from "src/i18n";
 import { createLocalWebTools } from "src/core/localWebTools";
+import { resolveWebSearchMode } from "src/core/webSearchMode";
 import { getLiveProviders } from "src/core/live/live-session";
 import LiveConversation from "./LiveConversation";
 import { LiveChatHistory } from "./liveChatHistory";
@@ -496,6 +497,12 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 		&& currentLocalLlmConfig?.framework !== "opencode";
 	const allowWebSearch = localLlmCanWebSearch || (!isCliMode && !!activeSearchProvider
 		&& providerSupportsWebSearch(activeSearchProvider, getApiProviderModelName(currentModel) || "", plugin.settings.webSearch));
+	// Show remaining Tavily / Brave quota only when this chat's searches spend it:
+	// local LLMs always use the external key; cloud models only in external mode.
+	const webSearchQuotaSettings = allowWebSearch && webSearchEnabled
+		&& localLlmSupportsWebSearch(plugin.settings.webSearch)
+		&& (localLlmCanWebSearch || resolveWebSearchMode(plugin.settings.webSearch) === "external")
+		? plugin.settings.webSearch : undefined;
 	// Server RAG needs API mode; local RAG works everywhere
 	const allowRag = ragEnabledState;
 	const resolvedApiModelName = getApiProviderModelName(currentModel) || "";
@@ -3688,6 +3695,7 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 								}}
 								allowWebSearch={allowWebSearch}
 								webSearchEnabled={webSearchEnabled}
+								webSearchQuotaSettings={webSearchQuotaSettings}
 								ragEnabled={allowRag}
 								ragSettings={allowRag ? ragSettingNames : []}
 								selectedRagSetting={selectedRagSetting}

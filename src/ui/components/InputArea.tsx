@@ -23,6 +23,8 @@ import type { SkillMetadata } from "src/core/skillsLoader";
 import type { OkfBundle } from "src/core/okfLoader";
 import SkillSelector from "./SkillSelector";
 import OkfSelector from "./OkfSelector";
+import { WebSearchQuota } from "./WebSearchQuota";
+import type { WebSearchSettings } from "src/core/webSearchMode";
 import { t } from "src/i18n";
 import { isCaretOnFirstLine, isCaretOnLastLine } from "./chat/chatUtils";
 import ModelSelector from "./ModelSelector";
@@ -51,6 +53,8 @@ interface InputAreaProps {
   onReasoningEffortChange: (effort: ReasoningEffort) => void;
   allowWebSearch: boolean;
   webSearchEnabled: boolean;
+  /** Set when this chat's searches spend Tavily / Brave quota; shows what is left. */
+  webSearchQuotaSettings?: WebSearchSettings;
   ragEnabled: boolean;
   ragSettings: string[];
   selectedRagSetting: string | null;
@@ -129,6 +133,7 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(function InputArea
   onReasoningEffortChange,
   allowWebSearch,
   webSearchEnabled,
+  webSearchQuotaSettings,
   ragEnabled,
   ragSettings,
   selectedRagSetting,
@@ -790,6 +795,7 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(function InputArea
             }}
             onChange={onSearchSelectionChange}
           />
+          {webSearchQuotaSettings && <WebSearchQuota settings={webSearchQuotaSettings} isLoading={isLoading} />}
           {ragEnabled && selectedRagSetting && !isImageGenerationModel(model) && (
             <>
               <label className="llm-hub-chat-rag-top-k" title={t("input.ragTopKDesc")}>
