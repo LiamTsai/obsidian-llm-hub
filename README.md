@@ -25,9 +25,10 @@
 >   - 「網路搜尋」開關可用於 CLI 模式，使用 CLI 內建的搜尋（Claude Code 的 WebSearch / WebFetch、Codex 的 `web_search`），不需 Tavily 金鑰。
 >   - 選 Claude CLI 時改回**側邊欄對話**（原版會開終端機），透過官方 `claude -p` 的 stream-json 介面收發訊息；要用完整的 Claude Code 終端機，可從命令面板執行「LLM Hub: Open CLI terminal」。
 >   - Claude CLI 改為與 Codex CLI 相同，透過插件的 MCP 橋接使用儲存庫工具（讀取、搜尋、建立筆記、提議修改）；修改既有檔案仍需你確認，Claude Code 自身的 Edit / Write 工具會被停用。原版下文表格中「CLI 模型儲存庫工具固定關閉」的說明，對這兩個 CLI 已不適用。
+>   - Claude CLI 對話時可在輸入框旁選模型（fable／opus／sonnet／haiku）與思考程度（low～max），分別對應 Claude Code 的 `--model` 與 `--effort`；中途切換會接續同一段對話。
 >   - 插件只啟動你電腦上官方、未修改的 CLI，登入由 CLI 自己完成，插件不接觸帳號或權杖。
 >
->   *Claude CLI chats in the sidebar again (via the official `claude -p` stream-json interface) instead of opening a terminal; the full terminal is still available from the "LLM Hub: Open CLI terminal" command. Claude Code and Codex CLI (subscription-based) can use their built-in web search via the Web search toggle, and Claude CLI now gets the same confirmation-gated Vault tools over MCP as Codex CLI. The plugin only launches the official, unmodified CLIs; sign-in stays inside the CLI.*
+>   *Claude CLI chats in the sidebar again (via the official `claude -p` stream-json interface) instead of opening a terminal, with model (fable / opus / sonnet / haiku) and effort (low–max) pickers next to the input; the full terminal is still available from the "LLM Hub: Open CLI terminal" command. Claude Code and Codex CLI (subscription-based) can use their built-in web search via the Web search toggle, and Claude CLI now gets the same confirmation-gated Vault tools over MCP as Codex CLI. The plugin only launches the official, unmodified CLIs; sign-in stays inside the CLI.*
 >
 > 原作者的其餘功能與說明維持不變，見下文。 / Everything else is unchanged from upstream; see below.
 

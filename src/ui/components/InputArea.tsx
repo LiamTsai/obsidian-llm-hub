@@ -48,6 +48,9 @@ interface InputAreaProps {
   codexModel?: string;
   codexReasoningEffort: CodexReasoningEffort;
   onCodexConfigChange: (model: string | undefined, reasoningEffort: CodexReasoningEffort) => void;
+  claudeModel?: string;
+  claudeEffort?: string;
+  onClaudeConfigChange?: (model: string | undefined, effort: string | undefined) => void;
   reasoningEffort: ReasoningEffort;
   reasoningEffortOptions: ReasoningEffort[];
   onReasoningEffortChange: (effort: ReasoningEffort) => void;
@@ -109,6 +112,11 @@ interface MentionItem {
 
 // 対応ファイル形式
 
+/** Claude Code model aliases; they always resolve to the latest model of that family. */
+const CLAUDE_CLI_MODEL_ALIASES = ["fable", "opus", "sonnet", "haiku"];
+/** Claude Code --effort levels. */
+const CLAUDE_CLI_EFFORTS = ["low", "medium", "high", "xhigh", "max"];
+
 /** Least restricted first: the Vault tool button reads as inactive only on the first. */
 const VAULT_TOOL_MODES = [
   { id: "all" as VaultToolMode, label: t("input.vaultToolAll"), description: t("input.vaultToolAllDesc") },
@@ -128,6 +136,9 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(function InputArea
   codexModel,
   codexReasoningEffort,
   onCodexConfigChange,
+  claudeModel,
+  claudeEffort,
+  onClaudeConfigChange,
   reasoningEffort,
   reasoningEffortOptions,
   onReasoningEffortChange,
@@ -761,6 +772,33 @@ const InputArea = forwardRef<InputAreaHandle, InputAreaProps>(function InputArea
                 title={t("settings.codexCliReasoningEffort")}
                 options={(["minimal", "low", "medium", "high", "xhigh", "max"] as CodexReasoningEffort[]).map((effort) => ({ value: effort, label: effort }))}
               />
+            </>
+          )}
+          {model === "claude-cli" && onClaudeConfigChange && (
+            <>
+            <ModelDropdown
+              classPrefix="llm-hub"
+              value={claudeModel || ""}
+              onChange={(value) => onClaudeConfigChange(value || undefined, claudeEffort)}
+              disabled={isLoading}
+              title={t("settings.claudeCliModel")}
+              options={[
+                { value: "", label: t("settings.claudeCliModel.default") },
+                ...CLAUDE_CLI_MODEL_ALIASES.map((alias) => ({ value: alias, label: alias })),
+                ...(claudeModel && !CLAUDE_CLI_MODEL_ALIASES.includes(claudeModel) ? [{ value: claudeModel, label: claudeModel }] : []),
+              ]}
+            />
+            <ModelDropdown
+              classPrefix="llm-hub"
+              value={claudeEffort || ""}
+              onChange={(value) => onClaudeConfigChange(claudeModel, value || undefined)}
+              disabled={isLoading}
+              title={t("input.reasoningEffort")}
+              options={[
+                { value: "", label: t("settings.claudeCliModel.default") },
+                ...CLAUDE_CLI_EFFORTS.map((effort) => ({ value: effort, label: effort })),
+              ]}
+            />
             </>
           )}
           {reasoningEffortOptions.length > 0 && (

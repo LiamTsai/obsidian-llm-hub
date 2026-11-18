@@ -1421,6 +1421,8 @@ export const zhTW: Record<string, string> = {
   "settings.geminiCliDisabled": "Antigravity CLI 已停用",
   "settings.claudeCliDisabled": "Claude CLI 已停用",
   "settings.codexCliDisabled": "Codex CLI 已停用",
+  "settings.claudeCliModel": "Claude CLI 模型",
+  "settings.claudeCliModel.default": "Claude Code 預設",
   "settings.codexCliModel": "Codex CLI 模型",
   "settings.codexCliModel.desc": "從已安裝的 Codex CLI 回報的目錄中選擇模型。",
   "settings.codexCliModel.default": "Codex CLI 預設",

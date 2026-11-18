@@ -1155,6 +1155,15 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 		void plugin.saveSettings();
 	};
 
+	// The persistent Claude process is recreated on the next message (resuming
+	// the same conversation) because model and effort are part of its options key.
+	const handleClaudeConfigChange = (model: string | undefined, effort: string | undefined) => {
+		const nextCliConfig = { ...plugin.settings.cliConfig, claudeCliModel: model, claudeCliEffort: effort };
+		plugin.settings.cliConfig = nextCliConfig;
+		setCliConfig(nextCliConfig);
+		void plugin.saveSettings();
+	};
+
 	// Resolve explicit references to vault paths; the shared resolver applies
 	// the host's selection sources, PDF extraction and vault-tool scope.
 	const commandVariableSources = (): CommandVariableSources => ({
@@ -1637,7 +1646,7 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 
 					// Get or create persistent CLI session
 					const existingSession = persistentCliRef.current;
-					const cliSessionOptions = { webSearch: cliWebSearch };
+					const cliSessionOptions = { webSearch: cliWebSearch, model: isClaudeCli ? cliConfig.claudeCliModel : undefined, effort: isClaudeCli ? cliConfig.claudeCliEffort : undefined };
 					let session: PersistentCliSession;
 					if (existingSession && existingSession.isAlive && existingSession.provider === currentProvider
 						&& existingSession.optionsKey === PersistentCliSession.optionsKey(codexMcpUrl, cliSessionOptions)) {
@@ -1767,7 +1776,9 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 						model: currentProvider,
 						modelDisplayName: isCodexCli
 							? ["Codex CLI", cliConfig.codexCliModel, cliConfig.codexCliReasoningEffort || "low"].filter(Boolean).join(" · ")
-							: undefined,
+							: isClaudeCli && (cliConfig.claudeCliModel || cliConfig.claudeCliEffort)
+								? ["Claude CLI", cliConfig.claudeCliModel, cliConfig.claudeCliEffort].filter(Boolean).join(" · ")
+								: undefined,
 						...pendingStatusFields({
 							edits: codexMutationTracking?.processedEdits ?? [],
 							deletes: codexMutationTracking?.processedDeletes ?? [],
@@ -3696,6 +3707,9 @@ const Chat = forwardRef<ChatRef, ChatProps>(({ plugin, onToggleSidebarWidth, onR
 								codexModel={cliConfig.codexCliModel}
 								codexReasoningEffort={cliConfig.codexCliReasoningEffort || "low"}
 								onCodexConfigChange={handleCodexConfigChange}
+								claudeModel={cliConfig.claudeCliModel}
+								claudeEffort={cliConfig.claudeCliEffort}
+								onClaudeConfigChange={handleClaudeConfigChange}
 								reasoningEffort={selectedReasoningEffort}
 								reasoningEffortOptions={reasoningEffortOptions}
 								onReasoningEffortChange={(effort) => {

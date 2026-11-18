@@ -650,8 +650,12 @@ export function buildClaudePersistentArgs(options: {
   sessionId?: string | null;
   webSearch?: boolean;
   mcpConfigPath?: string;
+  model?: string;
+  effort?: string;
 }): string[] {
   const args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"];
+  if (options.model?.trim()) args.push("--model", options.model.trim());
+  if (options.effort?.trim()) args.push("--effort", options.effort.trim());
   if (options.systemPrompt) args.push("--system-prompt", options.systemPrompt);
   if (options.sessionId) args.push("--resume", options.sessionId);
   const allowed: string[] = [];
@@ -1273,6 +1277,10 @@ export class CodexCliProvider extends BaseCliProvider {
 export interface CliSessionOptions {
   /** Let the CLI use its own web search (Claude WebSearch/WebFetch, Codex web_search). */
   webSearch?: boolean;
+  /** Claude CLI model alias or ID (e.g. "opus", "sonnet"); empty = Claude Code default. */
+  model?: string;
+  /** Claude CLI --effort level; empty = Claude Code default. */
+  effort?: string;
 }
 
 export class PersistentCliSession {
@@ -1311,7 +1319,7 @@ export class PersistentCliSession {
    * changed key means the session must be recreated (it resumes the same conversation).
    */
   static optionsKey(vaultMcpUrl: string | undefined, options: CliSessionOptions): string {
-    return JSON.stringify({ vaultMcpUrl: vaultMcpUrl ?? null, webSearch: options.webSearch === true });
+    return JSON.stringify({ vaultMcpUrl: vaultMcpUrl ?? null, webSearch: options.webSearch === true, model: options.model || null, effort: options.effort || null });
   }
 
   get optionsKey(): string { return PersistentCliSession.optionsKey(this.codexVaultMcpUrl, this.options); }
@@ -1340,6 +1348,8 @@ export class PersistentCliSession {
       sessionId: this.sessionId,
       webSearch: this.options.webSearch,
       mcpConfigPath: this.codexVaultMcpUrl ? this.writeClaudeMcpConfig(this.codexVaultMcpUrl) : undefined,
+      model: this.options.model,
+      effort: this.options.effort,
     });
     const { command, args, shell } = resolveClaudeCommand(cliArgs, this.customPath);
 

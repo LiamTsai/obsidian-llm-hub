@@ -128,5 +128,17 @@ describe("CLI web search and Vault bridge", () => {
     expect(PersistentCliSession.optionsKey("http://a", { webSearch: false })).toBe(base);
     expect(PersistentCliSession.optionsKey("http://a", { webSearch: true })).not.toBe(base);
     expect(PersistentCliSession.optionsKey(undefined, { webSearch: false })).not.toBe(base);
+    expect(PersistentCliSession.optionsKey("http://a", { webSearch: false, model: "opus" })).not.toBe(base);
+  });
+
+  it("passes the chosen Claude model and omits --model for the default", () => {
+    const opus = buildClaudePersistentArgs({ model: "opus" });
+    expect(opus[opus.indexOf("--model") + 1]).toBe("opus");
+    expect(buildClaudePersistentArgs({})).not.toContain("--model");
+    expect(buildClaudePersistentArgs({ model: "  " })).not.toContain("--model");
+    const high = buildClaudePersistentArgs({ effort: "high" });
+    expect(high[high.indexOf("--effort") + 1]).toBe("high");
+    expect(buildClaudePersistentArgs({})).not.toContain("--effort");
+    expect(PersistentCliSession.optionsKey("http://a", { effort: "max" })).not.toBe(PersistentCliSession.optionsKey("http://a", {}));
   });
 });

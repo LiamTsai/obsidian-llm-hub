@@ -101,6 +101,8 @@ export const ja: Record<string, string> = {
   "settings.geminiCliDisabled": "Antigravity CLIが無効化されました",
   "settings.claudeCliDisabled": "Claude CLIが無効化されました",
   "settings.codexCliDisabled": "Codex CLIが無効化されました",
+  "settings.claudeCliModel": "Claude CLIモデル",
+  "settings.claudeCliModel.default": "Claude Codeのデフォルト",
   "settings.codexCliModel": "Codex CLIモデル",
   "settings.codexCliModel.desc": "インストール済みのCodex CLIが提供するモデル一覧から選択します。",
   "settings.codexCliModel.default": "Codex CLIのデフォルト",

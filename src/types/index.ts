@@ -512,6 +512,8 @@ export interface CliProviderConfig {
   codexCliPath?: string;        // Custom path for Codex CLI
   codexCliModel?: string;       // Optional model override for Codex CLI
   codexCliReasoningEffort?: CodexReasoningEffort; // Reasoning effort override for Codex CLI
+  claudeCliModel?: string;      // Optional model override for Claude CLI (e.g. "opus", "sonnet")
+  claudeCliEffort?: string;     // Optional --effort for Claude CLI (low | medium | high | xhigh | max)
 }
 
 export type CodexReasoningEffort = Exclude<ReasoningEffort, "default" | "none">;

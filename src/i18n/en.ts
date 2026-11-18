@@ -103,6 +103,8 @@ export const en = {
   "settings.geminiCliDisabled": "Antigravity CLI disabled",
   "settings.claudeCliDisabled": "Claude CLI disabled",
   "settings.codexCliDisabled": "Codex CLI disabled",
+  "settings.claudeCliModel": "Claude CLI model",
+  "settings.claudeCliModel.default": "Claude CLI default",
   "settings.codexCliModel": "Codex CLI model",
   "settings.codexCliModel.desc": "Select a model from the catalog reported by the installed Codex CLI.",
   "settings.codexCliModel.default": "Codex CLI default",
