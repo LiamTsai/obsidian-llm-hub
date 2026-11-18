@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCodexExecInvocation, parseCodexModelsCatalog } from "./cliProvider";
+import { buildClaudePersistentArgs, buildClaudeVaultMcpConfig, buildCodexExecInvocation, parseCodexModelsCatalog, PersistentCliSession } from "./cliProvider";
 import type { Message } from "../types";
 
 describe("buildCodexExecInvocation", () => {
@@ -84,4 +84,49 @@ describe("buildCodexExecInvocation", () => {
     ]);
   });
 
+});
+
+describe("CLI web search and Vault bridge", () => {
+  const messages = [{ role: "user", content: "hi" } as Message];
+
+  it("turns on Codex web search only when requested", () => {
+    const on = buildCodexExecInvocation(messages, "system", undefined, undefined, undefined, "low", true).args;
+    expect(on).toContain('web_search="live"');
+    expect(on.indexOf('web_search="live"')).toBeLessThan(on.indexOf("-"));
+    const resumed = buildCodexExecInvocation(messages, "system", "session-1", undefined, undefined, "low", true).args;
+    expect(resumed.indexOf('web_search="live"')).toBeLessThan(resumed.indexOf("resume"));
+    expect(buildCodexExecInvocation(messages, "system").args.join(" ")).not.toContain("web_search");
+  });
+
+  it("allows Claude's web tools when search is on and denies them when off", () => {
+    const on = buildClaudePersistentArgs({ webSearch: true });
+    expect(on[on.indexOf("--allowedTools") + 1]).toBe("WebSearch,WebFetch");
+    expect(on).not.toContain("--mcp-config");
+    const off = buildClaudePersistentArgs({ webSearch: false });
+    expect(off[off.indexOf("--disallowedTools") + 1]).toBe("WebSearch,WebFetch");
+    expect(off).not.toContain("--allowedTools");
+  });
+
+  it("connects Claude to the Vault bridge and blocks its own file-writing tools", () => {
+    const args = buildClaudePersistentArgs({ systemPrompt: "sys", sessionId: "s-1", webSearch: true, mcpConfigPath: "/tmp/mcp.json" });
+    expect(args.slice(0, 6)).toEqual(["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]);
+    expect(args[args.indexOf("--system-prompt") + 1]).toBe("sys");
+    expect(args[args.indexOf("--resume") + 1]).toBe("s-1");
+    expect(args[args.indexOf("--mcp-config") + 1]).toBe("/tmp/mcp.json");
+    expect(args[args.indexOf("--allowedTools") + 1]).toBe("WebSearch,WebFetch,mcp__llm_hub_vault");
+    expect(args[args.indexOf("--disallowedTools") + 1]).toBe("Edit,Write,MultiEdit,NotebookEdit");
+  });
+
+  it("writes an HTTP MCP config for the bridge", () => {
+    expect(JSON.parse(buildClaudeVaultMcpConfig("http://127.0.0.1:1234/mcp?token=t"))).toEqual({
+      mcpServers: { llm_hub_vault: { type: "http", url: "http://127.0.0.1:1234/mcp?token=t" } },
+    });
+  });
+
+  it("changes the session options key when web search or the bridge changes", () => {
+    const base = PersistentCliSession.optionsKey("http://a", { webSearch: false });
+    expect(PersistentCliSession.optionsKey("http://a", { webSearch: false })).toBe(base);
+    expect(PersistentCliSession.optionsKey("http://a", { webSearch: true })).not.toBe(base);
+    expect(PersistentCliSession.optionsKey(undefined, { webSearch: false })).not.toBe(base);
+  });
 });

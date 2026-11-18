@@ -91,8 +91,10 @@ function getPluginDirectory(plugin: LlmHubPlugin): string | undefined {
   return candidateDirs.find((dir) => fs.existsSync(`${dir}/package.json`)) || candidateDirs.find((dir) => fs.existsSync(dir));
 }
 
-export function isTerminalProvider(model: ModelType): model is TerminalProvider {
-  return model === "claude-cli";
+// Fork: Claude CLI chats in the sidebar (claude -p stream-json) so it gets web
+// search and Vault tools; the terminal stays available via "Open CLI terminal".
+export function isTerminalProvider(_model: ModelType): _model is TerminalProvider {
+  return false;
 }
 
 function getFirstVerifiedProvider(plugin: LlmHubPlugin): TerminalProvider | null {

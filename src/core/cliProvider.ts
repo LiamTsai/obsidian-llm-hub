@@ -600,10 +600,13 @@ export function buildCodexExecInvocation(
   sessionId?: string,
   model?: string,
   vaultMcpUrl?: string,
-  reasoningEffort: CodexReasoningEffort = "low"
+  reasoningEffort: CodexReasoningEffort = "low",
+  webSearch = false,
 ): { args: string[]; stdin: string } {
   const modelArgs = model?.trim() ? ["--model", model.trim()] : [];
   const reasoningArgs = ["--config", `model_reasoning_effort=${JSON.stringify(reasoningEffort)}`];
+  // Codex's own web search runs on OpenAI's side under the user's ChatGPT plan.
+  const searchArgs = webSearch ? ["--config", 'web_search="live"'] : [];
   const vaultMcpArgs = vaultMcpUrl
     ? [
       "--sandbox", "read-only",
@@ -614,15 +617,55 @@ export function buildCodexExecInvocation(
   if (sessionId) {
     const lastMessage = messages[messages.length - 1];
     return {
-      args: ["exec", "--json", "--skip-git-repo-check", ...modelArgs, ...reasoningArgs, ...vaultMcpArgs, "resume", sessionId, "-"],
+      args: ["exec", "--json", "--skip-git-repo-check", ...modelArgs, ...reasoningArgs, ...searchArgs, ...vaultMcpArgs, "resume", sessionId, "-"],
       stdin: lastMessage?.role === "user" ? lastMessage.content : "",
     };
   }
 
   return {
-    args: ["exec", "--json", "--skip-git-repo-check", ...modelArgs, ...reasoningArgs, ...vaultMcpArgs, "-"],
+    args: ["exec", "--json", "--skip-git-repo-check", ...modelArgs, ...reasoningArgs, ...searchArgs, ...vaultMcpArgs, "-"],
     stdin: formatHistoryAsPrompt(messages, systemPrompt),
   };
+}
+
+/** MCP server name the plugin's Vault bridge is registered under, for both CLIs. */
+export const VAULT_MCP_SERVER_NAME = "llm_hub_vault";
+
+/** Claude Code tools that write files directly; Vault changes go through the plugin instead. */
+const CLAUDE_FILE_WRITE_TOOLS = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
+
+/** MCP config Claude Code loads with --mcp-config (HTTP transport to the plugin's bridge). */
+export function buildClaudeVaultMcpConfig(vaultMcpUrl: string): string {
+  return JSON.stringify({ mcpServers: { [VAULT_MCP_SERVER_NAME]: { type: "http", url: vaultMcpUrl } } });
+}
+
+/**
+ * Arguments for the persistent Claude Code process (stream-json in/out).
+ * Web search uses Claude Code's own WebSearch / WebFetch under the user's
+ * subscription; Vault access goes through the plugin's MCP bridge, whose
+ * write tools ask for confirmation, so Claude's own file-writing tools are denied.
+ */
+export function buildClaudePersistentArgs(options: {
+  systemPrompt?: string;
+  sessionId?: string | null;
+  webSearch?: boolean;
+  mcpConfigPath?: string;
+}): string[] {
+  const args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"];
+  if (options.systemPrompt) args.push("--system-prompt", options.systemPrompt);
+  if (options.sessionId) args.push("--resume", options.sessionId);
+  const allowed: string[] = [];
+  const denied: string[] = [];
+  if (options.webSearch) allowed.push("WebSearch", "WebFetch");
+  else denied.push("WebSearch", "WebFetch");
+  if (options.mcpConfigPath) {
+    args.push("--mcp-config", options.mcpConfigPath);
+    allowed.push(`mcp__${VAULT_MCP_SERVER_NAME}`);
+    denied.push(...CLAUDE_FILE_WRITE_TOOLS);
+  }
+  if (allowed.length > 0) args.push("--allowedTools", allowed.join(","));
+  if (denied.length > 0) args.push("--disallowedTools", denied.join(","));
+  return args;
 }
 
 /**
@@ -1107,7 +1150,8 @@ export class CodexCliProvider extends BaseCliProvider {
     private model?: string,
     private customPath?: string,
     private vaultMcpUrl?: string,
-    private reasoningEffort: CodexReasoningEffort = "low"
+    private reasoningEffort: CodexReasoningEffort = "low",
+    private webSearch = false,
   ) {
     super();
   }
@@ -1129,7 +1173,7 @@ export class CodexCliProvider extends BaseCliProvider {
     // Build CLI arguments based on whether we have a session ID.
     // Prompt content is sent through stdin so large skill/OKF/RAG contexts do not hit argv limits.
     // Note: --json and --skip-git-repo-check are options for 'exec', must come before subcommands.
-    const { args: cliArgs, stdin: prompt } = buildCodexExecInvocation(messages, systemPrompt, sessionId, this.model, this.vaultMcpUrl, this.reasoningEffort);
+    const { args: cliArgs, stdin: prompt } = buildCodexExecInvocation(messages, systemPrompt, sessionId, this.model, this.vaultMcpUrl, this.reasoningEffort, this.webSearch);
 
     const { command, args, shell } = resolveCodexCommand(cliArgs, this.customPath);
     const proc = spawn(command, args, {
@@ -1226,6 +1270,11 @@ export class CodexCliProvider extends BaseCliProvider {
  * Chat lifecycle:  create on first CLI message → reuse → terminate on provider change / new chat / unmount
  * Workflow lifecycle: create at workflow start → pass through context → terminate at workflow end
  */
+export interface CliSessionOptions {
+  /** Let the CLI use its own web search (Claude WebSearch/WebFetch, Codex web_search). */
+  webSearch?: boolean;
+}
+
 export class PersistentCliSession {
   private proc: ChildProcessType | null = null;
   private sessionId: string | null = null;
@@ -1248,13 +1297,24 @@ export class PersistentCliSession {
     existingSessionId?: string,
     private codexModel?: string,
     private codexVaultMcpUrl?: string,
-    private codexReasoningEffort: CodexReasoningEffort = "low"
+    private codexReasoningEffort: CodexReasoningEffort = "low",
+    private options: CliSessionOptions = {},
   ) {
     this._providerType = providerType;
     this.workingDirectory = workingDirectory;
     this.customPath = customPath;
     this.sessionId = existingSessionId || null;
   }
+
+  /**
+   * Settings baked into the CLI process. Claude's process is long-lived, so a
+   * changed key means the session must be recreated (it resumes the same conversation).
+   */
+  static optionsKey(vaultMcpUrl: string | undefined, options: CliSessionOptions): string {
+    return JSON.stringify({ vaultMcpUrl: vaultMcpUrl ?? null, webSearch: options.webSearch === true });
+  }
+
+  get optionsKey(): string { return PersistentCliSession.optionsKey(this.codexVaultMcpUrl, this.options); }
 
   get isAlive(): boolean { return this._isAlive; }
   get provider(): ChatProvider { return this._providerType; }
@@ -1275,18 +1335,12 @@ export class PersistentCliSession {
    */
   private spawnPersistentClaude(systemPrompt: string): void {
     const { spawn } = getChildProcess();
-    const cliArgs = [
-      "-p",
-      "--input-format", "stream-json",
-      "--output-format", "stream-json",
-      "--verbose",
-    ];
-    if (systemPrompt) {
-      cliArgs.push("--system-prompt", systemPrompt);
-    }
-    if (this.sessionId) {
-      cliArgs.push("--resume", this.sessionId);
-    }
+    const cliArgs = buildClaudePersistentArgs({
+      systemPrompt,
+      sessionId: this.sessionId,
+      webSearch: this.options.webSearch,
+      mcpConfigPath: this.codexVaultMcpUrl ? this.writeClaudeMcpConfig(this.codexVaultMcpUrl) : undefined,
+    });
     const { command, args, shell } = resolveClaudeCommand(cliArgs, this.customPath);
 
     this.closed = false;
@@ -1318,6 +1372,19 @@ export class PersistentCliSession {
         this.onStdoutData(data);
       });
     }
+  }
+
+  /**
+   * Claude reads MCP servers from a JSON file; a file path also avoids passing
+   * JSON quotes through cmd.exe when the CLI has to be started via a shell.
+   */
+  private writeClaudeMcpConfig(vaultMcpUrl: string): string {
+    const fs = getNodeModule<typeof import("fs")>("fs");
+    const os = getNodeModule<typeof import("os")>("os");
+    const path = getNodeModule<typeof import("path")>("path");
+    const file = path.join(os.tmpdir(), "obsidian-llm-hub-tw-claude-mcp.json");
+    fs.writeFileSync(file, buildClaudeVaultMcpConfig(vaultMcpUrl), "utf8");
+    return file;
   }
 
   /** Whether this session uses a persistent Claude CLI process */
@@ -1512,7 +1579,7 @@ export class PersistentCliSession {
   ): AsyncGenerator<StreamChunk> {
     let provider: CliProviderInterface;
     if (this._providerType === "codex-cli") {
-      provider = new CodexCliProvider(this.codexModel, this.customPath, this.codexVaultMcpUrl, this.codexReasoningEffort);
+      provider = new CodexCliProvider(this.codexModel, this.customPath, this.codexVaultMcpUrl, this.codexReasoningEffort, this.options.webSearch === true);
     } else {
       provider = new AntigravityCliProvider(this.customPath);
     }
